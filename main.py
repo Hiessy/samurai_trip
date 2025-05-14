@@ -1,83 +1,78 @@
 import pygame
-import os
 import sys
 
-# Initialize Pygame
+# --- Settings ---
+SPRITE_SHEET = "assets/img/samurai.png"
+ORIG_FRAME_WIDTH = 256
+ORIG_FRAME_HEIGHT = 256
+COLUMNS = 4
+RUNNING_ROW = 1  # 2nd row (0-indexed)
+FPS = 8
+SPEED = 5
+SCALE = 0.5  # Resize to 50%
+
+# --- Init ---
 pygame.init()
-
-# Screen setup
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Samurai Animation")
-
-# Load sprite sheet
-try:
-    sprite_sheet = pygame.image.load(os.path.join('assets', 'img', 'samurai.png')).convert_alpha()
-except Exception as e:
-    print(f"Error loading sprite sheet: {e}")
-    sys.exit()
-
-# Sprite sheet dimensions (1024x1536)
-SPRITE_SHEET_WIDTH = 1024
-SPRITE_SHEET_HEIGHT = 1536
-
-# Animation settings (adjust based on your sheet layout)
-COLUMNS = 4  # Frames per row
-ROWS = 6  # Number of rows
-FRAME_WIDTH = SPRITE_SHEET_WIDTH // COLUMNS
-FRAME_HEIGHT = SPRITE_SHEET_HEIGHT // ROWS
-
-# Extract frames
-frames = []
-for row in range(ROWS):
-    for col in range(COLUMNS):
-        frame_rect = pygame.Rect(
-            col * FRAME_WIDTH,
-            row * FRAME_HEIGHT,
-            FRAME_WIDTH,
-            FRAME_HEIGHT
-        )
-        frame = sprite_sheet.subsurface(frame_rect)
-        frames.append(frame)
-
-# Animation control
-current_frame = 0
-animation_speed = 0.1  # Seconds per frame (adjust for speed)
-last_update = pygame.time.get_ticks()
-
-# Character position
-char_x = SCREEN_WIDTH // 2 - FRAME_WIDTH // 2
-char_y = SCREEN_HEIGHT // 2 - FRAME_HEIGHT // 2
-
-# Main game loop
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption("Samurai Running Fixed + Scaled")
 clock = pygame.time.Clock()
-running = True
 
+# --- Load and scale frames ---
+sheet = pygame.image.load(SPRITE_SHEET).convert_alpha()
+
+# Extract specific row
+frames = []
+for col in range(COLUMNS):
+    x = col * ORIG_FRAME_WIDTH
+    y = RUNNING_ROW * ORIG_FRAME_HEIGHT
+    frame = sheet.subsurface(pygame.Rect(x, y, ORIG_FRAME_WIDTH, ORIG_FRAME_HEIGHT))
+
+    # Resize frame
+    new_size = (int(ORIG_FRAME_WIDTH * SCALE), int(ORIG_FRAME_HEIGHT * SCALE))
+    frame = pygame.transform.scale(frame, new_size)
+
+    frames.append(frame)
+
+# --- Sprite state ---
+x_pos = 70
+y_pos = 600 - frames[0].get_height()  # Ground alignment
+frame_index = 0
+facing_right = True
+
+# --- Game loop ---
+running = True
 while running:
+    keys = pygame.key.get_pressed()
+    move = 0
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # Handle animation frame updates
-    now = pygame.time.get_ticks()
-    if now - last_update > animation_speed * 1000:
-        current_frame = (current_frame + 1) % len(frames)
-        last_update = now
+    # Movement
+    if keys[pygame.K_LEFT]:
+        move = -SPEED
+        facing_right = False
+    elif keys[pygame.K_RIGHT]:
+        move = SPEED
+        facing_right = True
 
-    # Clear screen
-    screen.fill((50, 50, 50))  # Dark gray background
+    x_pos += move
 
-    # Draw current frame
-    screen.blit(frames[current_frame], (char_x, char_y))
+    # Draw
+    screen.fill((30, 30, 30))
 
-    # Display frame info (debug)
-    font = pygame.font.SysFont(None, 24)
-    debug_text = f"Frame: {current_frame + 1}/{len(frames)} | Size: {FRAME_WIDTH}x{FRAME_HEIGHT}"
-    text_surface = font.render(debug_text, True, (255, 255, 255))
-    screen.blit(text_surface, (10, 10))
+    current_frame = frames[frame_index]
+    if not facing_right:
+        current_frame = pygame.transform.flip(current_frame, True, False)
 
+    screen.blit(current_frame, (x_pos, y_pos))
     pygame.display.flip()
-    clock.tick(60)
+
+    if move != 0:
+        frame_index = (frame_index + 1) % len(frames)
+
+    clock.tick(FPS)
 
 pygame.quit()
+sys.exit()
